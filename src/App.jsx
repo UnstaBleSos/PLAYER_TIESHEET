@@ -20,16 +20,16 @@ function App() {
   };
 
   useEffect(() => {
-    if (showTieSheet && matches.length>0) {
+    if (matches.length > 0) {
       gsap.from(playerRefs.current, {
         duration: 0.8,
         opacity: 0,
         x: 50,
-        stagger: 0.2,
+        stagger: 0.15,
         ease: "power3.out",
       });
     }
-  }, [showTieSheet,matches]);
+  }, [matches]);
 
   const handleNumChange = (e) => {
     const value = Number(e.target.value);
@@ -40,15 +40,16 @@ function App() {
     setNumPlayers(value);
     setShowInputs(false);
     setShowTieSheet(false);
+    setPlayers([]);
+    setMatches([]);
+    setPlayerInputs([]);
   };
 
   const generatePlayerInputs = () => {
-    if (numPlayers < 1) {
-      alert("Enter a valid number of players");
-      return;
-    }
+    if (numPlayers < 1) return;
     setPlayerInputs(Array(numPlayers).fill(""));
     setShowInputs(true);
+    setShowTieSheet(false);
   };
 
   const handlePlayerNameChange = (index, value) => {
@@ -58,10 +59,8 @@ function App() {
   };
 
   const generateMatches = () => {
-    const validPlayers = playerInputs
-      .map((name) => name.trim())
-      .filter((name) => name !== "");
-    if (validPlayers.length !== playerInputs.length) {
+    const validPlayers = playerInputs.map((p) => p.trim());
+    if (validPlayers.includes("")) {
       alert("Please fill in all player names");
       return;
     }
@@ -71,11 +70,9 @@ function App() {
       const j = Math.floor(Math.random() * (i + 1));
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
-    setPlayers(shuffled);
 
     const newMatches = [];
     const remaining = [...shuffled];
-
     while (remaining.length > 0) {
       const i1 = Math.floor(Math.random() * remaining.length);
       const player1 = remaining.splice(i1, 1)[0];
@@ -89,38 +86,40 @@ function App() {
       }
     }
 
+    setPlayers(shuffled);
     setMatches(newMatches);
-
     setShowTieSheet(true);
   };
 
   return (
-    <div className="flex min-h-screen bg-black text-white p-6 gap-6">
-      <div className="flex flex-col gap-4 w-1/2">
-        <div className="text-blue-300 text-[60px]">TieSheet</div>
+    <div className="flex min-h-screen bg-gradient-to-b from-gray-900 to-black text-white p-8 gap-10">
+      <div className="flex flex-col gap-6 w-1/2 bg-gray-800/40 backdrop-blur-md p-8 rounded-2xl shadow-lg border border-gray-700">
+        <h1 className="text-blue-400 text-5xl font-bold tracking-wide text-center">
+          TieSheet
+        </h1>
 
-        <div className="flex gap-2">
+        <div className="flex gap-3 justify-center">
           <input
-            className="border p-2 w-64 text-white"
+            className="border border-gray-600 bg-gray-900 text-white rounded-lg p-3 w-56 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
             type="number"
             placeholder="Enter number of players"
             value={numPlayers > 0 ? numPlayers : ""}
             onChange={handleNumChange}
           />
           <button
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-lg font-semibold transition-all"
             onClick={generatePlayerInputs}
           >
-            Generate Player Inputs
+            Add Players
           </button>
         </div>
 
         {showInputs && (
-          <div className="flex flex-col gap-2 mt-4">
+          <div className="flex flex-col gap-3 mt-4 items-center">
             {playerInputs.map((name, index) => (
               <input
                 key={index}
-                className="border p-2 w-64 text-white"
+                className="border border-gray-600 bg-gray-900 text-white rounded-lg p-2 w-64 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                 type="text"
                 placeholder={`Player ${index + 1} name`}
                 value={name}
@@ -128,7 +127,7 @@ function App() {
               />
             ))}
             <button
-              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded mt-2 mr-60 self-center"
+              className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-semibold transition-all mt-4"
               onClick={generateMatches}
             >
               Generate Matches
@@ -138,17 +137,23 @@ function App() {
       </div>
 
       {showTieSheet && (
-        <div className="flex flex-col w-1/2 gap-4">
-          <h2 className="text-[45px]">Shuffled Players:</h2>
-          <div className="text-[25px]">{players.join(", ")}</div>
+        <div className="flex flex-col w-1/2 bg-gray-800/40 backdrop-blur-md p-8 rounded-2xl shadow-lg border border-gray-700">
+          <h2 className="text-4xl font-bold text-blue-400 mb-3">
+            Shuffled Players
+          </h2>
+          <div className="text-lg text-gray-300 mb-8">{players.join(", ")}</div>
 
-          <h1 className="text-[45px]">Matches:</h1>
-          <ul>
+          <h2 className="text-4xl font-bold text-blue-400 mb-3">Matches</h2>
+          <ul className="space-y-3 text-lg">
             {matches.map((match, index) => (
-              <li key={index} ref={addToRefs} className="mb-1 text-[25px]">
+              <li
+                key={index}
+                ref={addToRefs}
+                className="bg-gray-900 px-4 py-2 rounded-lg border border-gray-700 shadow-md text-gray-200 hover:bg-gray-700 transition-all"
+              >
                 {match[1] === "Bye"
                   ? `${match[0]} gets a bye`
-                  : `${match[0]} vs ${match[1]}`}
+                  : `${match[0]} 🆚 ${match[1]}`}
               </li>
             ))}
           </ul>
