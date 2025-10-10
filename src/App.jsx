@@ -1,188 +1,198 @@
-import { useState, useRef, useEffect } from "react";
-import { gsap } from "gsap";
+import { useState } from "react";
 import "./App.css";
 
 function App() {
   const [numPlayers, setNumPlayers] = useState(0);
   const [playerInputs, setPlayerInputs] = useState([]);
-  const [players, setPlayers] = useState([]);
-  const [matches, setMatches] = useState([]);
-  const [showInputs, setShowInputs] = useState(false);
-  const [showTieSheet, setShowTieSheet] = useState(false);
-  const shuffleRef = useRef();
-  const matchesRef = useRef();
-  const playerRef = useRef([]);
-  const playersRef = useRef([]);
+  const [rounds, setRounds] = useState([]);
 
   const handleNumChange = (e) => {
     const value = Number(e.target.value);
-    if (value > 12) {
-      alert("Cannot have more than 12 players");
-      return;
-    }
+    if (value > 18) return alert("Cannot have more than 18 players");
     setNumPlayers(value);
-    setShowInputs(false);
-    setShowTieSheet(false);
+    setPlayerInputs([]);
+    setRounds([]);
   };
-
-  useEffect(() => {
-    gsap.from(shuffleRef.current, {
-      opacity: 0,
-      duration: 0.8,
-      x: 20,
-    });
-    gsap.from(matchesRef.current, {
-      opacity: 0,
-      duration: 0.8,
-      x: 20,
-    });
-    if (playersRef.current.length) {
-      gsap.fromTo(
-        playersRef.current,
-        { opacity: 0, y: 20 },
-        {
-          opacity: 1,
-          y: 0,
-          duration: 0.4,
-          stagger: 0.1,
-          ease: "power2.out",
-        }
-      );
-    }
-  }, [showTieSheet]);
 
   const generatePlayerInputs = () => {
-    if (numPlayers < 1) {
-      alert("Enter a valid number of players");
-      return;
-    }
+    if (numPlayers < 1) return alert("Enter a valid number of players");
     setPlayerInputs(Array(numPlayers).fill(""));
-    setShowInputs(true);
   };
 
-  const handlePlayerNameChange = (index, value) => {
+  const handlePlayerNameChange = (i, value) => {
     const newInputs = [...playerInputs];
-    newInputs[index] = value;
+    newInputs[i] = value;
     setPlayerInputs(newInputs);
   };
 
-  const generateMatches = () => {
-    const validPlayers = playerInputs.map((name) => name.trim());
-    if (validPlayers.includes("")) {
-      alert("Please fill in all player names");
-      return;
-    }
+  const generateBracket = () => {
+    const validPlayers = playerInputs.map((p) => p.trim());
+    if (validPlayers.includes("")) return alert("Fill all player names");
 
     const shuffled = [...validPlayers];
     for (let i = shuffled.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
-    setPlayers(shuffled);
 
-    const newMatches = [];
+    const firstRound = [];
     const remaining = [...shuffled];
-
     while (remaining.length > 0) {
-      const i1 = Math.floor(Math.random() * remaining.length);
-      const player1 = remaining.splice(i1, 1)[0];
-
-      if (remaining.length > 0) {
-        const i2 = Math.floor(Math.random() * remaining.length);
-        const player2 = remaining.splice(i2, 1)[0];
-        newMatches.push([player1, player2]);
-      } else {
-        newMatches.push([player1, "Bye"]);
-      }
+      const p1 = remaining.shift();
+      const p2 = remaining.length > 0 ? remaining.shift() : "Bye";
+      firstRound.push({ player1: p1, player2: p2, winner: null });
     }
 
-    setMatches(newMatches);
-    setShowTieSheet(true);
+    const totalRounds = Math.ceil(Math.log2(firstRound.length)) + 1;
+    const allRounds = Array.from({ length: totalRounds }, (_, i) =>
+      i === 0 ? firstRound : []
+    );
+
+    setRounds(allRounds);
+  };
+
+  const selectWinner = (roundIndex, matchIndex, winner) => {
+    const newRounds = [...rounds];
+    newRounds[roundIndex][matchIndex].winner = winner;
+
+    if (roundIndex + 1 < newRounds.length) {
+      const nextRound = [...newRounds[roundIndex + 1]];
+      const nextIndex = Math.floor(matchIndex / 2);
+      const slot = nextRound[nextIndex] || {
+        player1: null,
+        player2: null,
+        winner: null,
+      };
+      if (matchIndex % 2 === 0) slot.player1 = winner;
+      else slot.player2 = winner;
+      nextRound[nextIndex] = slot;
+      newRounds[roundIndex + 1] = nextRound;
+    }
+
+    const finalRound = newRounds[newRounds.length - 1];
+    if (finalRound.length === 1 && finalRound[0].winner) {
+      alert(`🏆 Tournament Winner: ${finalRound[0].winner}`);
+    }
+
+    setRounds(newRounds);
   };
 
   return (
-    <div className="flex min-h-screen bg-gradient-to-b from-gray-900 to-black text-white p-6 justify-start items-start gap-8">
-      <div className="flex flex-col w-1/2 gap-6 bg-gray-800/50 backdrop-blur-md p-8 rounded-2xl shadow-lg border border-gray-700">
-        <h1 className="text-center text-blue-400 text-5xl font-bold tracking-wide mb-4">
+    <div className="flex min-h-screen bg-gray-900 text-white p-6 gap-8">
+      {/* Sidebar for inputs */}
+      <div className="flex flex-col w-1/3 gap-6 bg-gray-800/50 p-8 rounded-2xl shadow-lg border border-gray-700">
+        <h1 className="text-center text-blue-400 text-4xl font-bold mb-4">
           TieSheet
         </h1>
-
-        <div className="flex gap-3 justify-center">
-          <input
-            className="border border-gray-600 bg-gray-900 text-white rounded-lg p-3 w-64 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-            type="number"
-            placeholder="Enter number of players"
-            value={numPlayers > 0 ? numPlayers : ""}
-            onChange={handleNumChange}
-          />
-          <button
-            className="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded-lg font-semibold transition-all"
-            onClick={generatePlayerInputs}
-          >
-            Add Players
-          </button>
-        </div>
-
-        {showInputs && (
-          <div className="flex flex-col gap-3 items-center mt-4">
-            {playerInputs.map((name, index) => (
+        <input
+          type="number"
+          value={numPlayers > 0 ? numPlayers : ""}
+          onChange={handleNumChange}
+          placeholder="Enter number of players"
+          className="border border-gray-600 bg-gray-900 text-white rounded-lg p-3 w-full"
+        />
+        <button
+          onClick={generatePlayerInputs}
+          className="bg-blue-500 hover:bg-blue-600 text-white px-5 py-2 rounded-lg mt-2 font-semibold"
+        >
+          Add Players
+        </button>
+        {playerInputs.length > 0 && (
+          <div className="flex flex-col gap-2 mt-4">
+            {playerInputs.map((name, i) => (
               <input
-                key={index}
-                className="border border-gray-600 bg-gray-900 text-white rounded-lg p-2 w-64 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
-                type="text"
-                placeholder={`Player ${index + 1} name`}
+                key={i}
                 value={name}
-                onChange={(e) => handlePlayerNameChange(index, e.target.value)}
-                ref={playerRef}
+                placeholder={`Player ${i + 1}`}
+                onChange={(e) => handlePlayerNameChange(i, e.target.value)}
+                className="border border-gray-600 bg-gray-900 text-white rounded-lg p-2"
               />
             ))}
             <button
-              className="bg-green-500 hover:bg-green-600 text-white px-5 py-2 rounded-lg font-semibold transition-all mt-4"
-              onClick={generateMatches}
+              onClick={generateBracket}
+              className="bg-green-500 hover:bg-green-600 text-white px-5 py-2 rounded-lg mt-2 font-semibold"
             >
-              Generate Matches
+              Generate Bracket
             </button>
           </div>
         )}
       </div>
 
-      {showTieSheet && (
-        <div className="flex flex-col w-1/2 gap-6">
-          <div>
-            <h2
-              className="text-3xl text-blue-400 font-bold mb-2"
-              ref={shuffleRef}
-            >
-              Shuffled Players
-            </h2>
-            <div className="bg-gray-900 border border-gray-700 rounded-lg p-4 text-lg text-gray-200">
-              {players.join(", ")}
-            </div>
-          </div>
+      {/* Tournament Bracket */}
+      <div className="flex-1 overflow-x-auto">
+        <div className="flex gap-16 items-start relative">
+          {rounds.map((round, rIndex) => (
+            <div key={rIndex} className="flex flex-col items-center relative">
+              {round.map((match, mIndex) => {
+                const marginTop =
+                  rIndex === 0 ? "1rem" : `${Math.pow(2, rIndex - 1) * 5}rem`;
 
-          <div>
-            <h2
-              className="text-3xl text-blue-400 font-bold mb-2"
-              ref={matchesRef}
-            >
-              Matches
-            </h2>
-            <ul className="space-y-2 max-h-96 overflow-y-auto">
-              {matches.map((match, index) => (
-                <li
-                  key={index}
-                  ref={(el) => (playersRef.current[index] = el)}
-                  className="bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-gray-200 shadow hover:bg-gray-700 transition-all"
-                >
-                  {match[1] === "Bye"
-                    ? `${match[0]} gets a bye`
-                    : `${match[0]} 🆚 ${match[1]}`}
-                </li>
-              ))}
-            </ul>
-          </div>
+                return (
+                  <div
+                    key={mIndex}
+                    className="flex flex-col items-center relative"
+                    style={{
+                      marginTop,
+                      marginBottom: marginTop,
+                    }}
+                  >
+                    {rIndex < rounds.length - 1 && (
+                      <>
+                        <div
+                          className="absolute border-r border-t border-gray-600"
+                          style={{
+                            height: "3.5rem",
+                            width: "2rem",
+                            top: "1.25rem",
+                            left: "100%",
+                          }}
+                        />
+                        <div
+                          className="absolute  border-b border-gray-600"
+                          style={{
+                            height: "1.5rem",
+                            width: "2rem",
+                            top: "3.3rem",
+                            left: "100%",
+                          }}
+                        />
+                      </>
+                    )}
+
+                    <button
+                      className={`px-3 py-1 rounded w-28 text-center ${
+                        match.winner === match.player1
+                          ? "bg-green-600"
+                          : "bg-gray-800"
+                      }`}
+                      onClick={() =>
+                        selectWinner(rIndex, mIndex, match.player1)
+                      }
+                    >
+                      {match.player1 || "—"}
+                    </button>
+
+                    <span className="my-1">vs</span>
+
+                    <button
+                      className={`px-3 py-1 rounded w-28 text-center ${
+                        match.winner === match.player2
+                          ? "bg-green-600"
+                          : "bg-gray-800"
+                      }`}
+                      onClick={() =>
+                        selectWinner(rIndex, mIndex, match.player2)
+                      }
+                    >
+                      {match.player2 || "—"}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
         </div>
-      )}
+      </div>
     </div>
   );
 }
